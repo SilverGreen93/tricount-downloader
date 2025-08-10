@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import requests
 import json
 import uuid
@@ -7,6 +9,8 @@ import rsa
 import openpyxl
 import csv
 from tqdm import tqdm
+import argparse
+import re
 
 class TricountAPI:
     def __init__(self):
@@ -269,8 +273,22 @@ class TricountHandler:
 
 
 if __name__ == "__main__":
-    # example key
-    tricount_key = "tISWyMCgrIMgFuxudZ"
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Download and process Tricount data.")
+    parser.add_argument("input", type=str, help="The Tricount key or URL to fetch data for.")
+    args = parser.parse_args()
+
+    # Extract the tricount_key from the input
+    input_value = args.input
+    tricount_key = input_value
+
+    # Check if the input is a URL and extract the key
+    if input_value.startswith("http"):
+        match = re.search(r"tricount\.com/([a-zA-Z0-9]+)", input_value)
+        if match:
+            tricount_key = match.group(1)
+        else:
+            raise ValueError("Invalid Tricount URL. Could not extract the key.")
 
     api = TricountAPI()
     api.authenticate()
