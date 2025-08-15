@@ -275,40 +275,53 @@ class TricountHandler:
 if __name__ == "__main__":
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Download and process Tricount data.")
-    parser.add_argument("input", type=str, help="The Tricount key or URL to fetch data for.")
+    parser.add_argument("input", type=str, help="The Tricount key, URL, or local JSON file to fetch data for.")
+    parser.add_argument("--excel", action="store_true", help="Save transactions to an Excel file.")
+    parser.add_argument("--sesterce", action="store_true", help="Export transactions to a Sesterce-compatible CSV.")
+    parser.add_argument("--attach", action="store_true", help="Download all attachments.")
     args = parser.parse_args()
 
-    # Extract the tricount_key from the input
-    input_value = args.input
-    tricount_key = input_value
+    # Determine if the input is a JSON file
+    if args.input.endswith(".json"):
+        # Load data from the local JSON file
+        with open(args.input, 'r') as f:
+            data = json.load(f)
+    else:
+        # Extract the tricount_key from the input
+        input_value = args.input
+        tricount_key = input_value
 
-    # Check if the input is a URL and extract the key
-    if input_value.startswith("http"):
-        match = re.search(r"tricount\.com/([a-zA-Z0-9]+)", input_value)
-        if match:
-            tricount_key = match.group(1)
-        else:
-            raise ValueError("Invalid Tricount URL. Could not extract the key.")
+        # Check if the input is a URL and extract the key
+        if input_value.startswith("http"):
+            match = re.search(r"tricount\.com/([a-zA-Z0-9]+)", input_value)
+            if match:
+                tricount_key = match.group(1)
+            else:
+                raise ValueError("Invalid Tricount URL. Could not extract the key.")
 
-    api = TricountAPI()
-    api.authenticate()
-    data = api.fetch_tricount_data(tricount_key)
+        api = TricountAPI()
+        api.authenticate()
+        data = api.fetch_tricount_data(tricount_key)
 
-    # save data to local file
-    with open('response_data.json', 'w') as f:
-        json.dump(data, f, indent=2)
-
-    # load data from local file
-    #with open('response_data.json', 'r') as f:
-    #    data = json.load(f)
+        # Save data to a local file
+        with open('response_data.json', 'w') as f:
+            json.dump(data, f, indent=2)
 
     handler = TricountHandler()
     tricount_title = handler.get_tricount_title(data)
 
     memberships, transactions = handler.parse_tricount_data(data)
 
-    handler.write_to_csv(transactions, file_name=f"Transactions {tricount_title}")
+    # Write plain CSV only if neither --excel nor --sesterce is specified
+    if not args.excel and not args.sesterce:
+        handler.write_to_csv(transactions, file_name=f"Transactions {tricount_title}")
 
-    #handler.write_to_excel(transactions, file_name=f"Transactions {tricount_title}")
-    #handler.write_to_sesterce_csv(memberships, transactions, f"Transaction {tricount_title} (Sesterce)")
-    #handler.download_attachments(transactions, download_folder=f"Attachments {tricount_title}")
+    # Handle optional features based on command-line arguments
+    if args.excel:
+        handler.write_to_excel(transactions, file_name=f"Transactions {tricount_title}")
+
+    if args.sesterce:
+        handler.write_to_sesterce_csv(memberships, transactions, f"Transaction {tricount_title} (Sesterce)")
+
+    if args.attach:
+        handler.download_attachments(transactions, download_folder=f"Attachments {tricount_title}")
